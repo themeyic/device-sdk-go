@@ -11,9 +11,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"net/url"
 	"reflect"
-	"strings"
 	"sync"
 	"time"
 
@@ -39,12 +37,74 @@ func BuildAddr(host string, port string) string {
 	return buffer.String()
 }
 
+func transformForReading(cv *dsModels.CommandValue) (interface{}, error) {
+	var v interface{}
+	var err error = nil
+	switch cv.Type {
+	case dsModels.Uint8:
+		v, err = cv.Uint8Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Uint16:
+		v, err = cv.Uint16Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Uint32:
+		v, err = cv.Uint32Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Uint64:
+		v, err = cv.Uint64Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Int8:
+		v, err = cv.Int8Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Int16:
+		v, err = cv.Int16Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Int32:
+		v, err = cv.Int32Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Int64:
+		v, err = cv.Int64Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Float32:
+		v, err = cv.Float32Value()
+		if err != nil {
+			return 0, err
+		}
+	case dsModels.Float64:
+		v, err = cv.Float64Value()
+		if err != nil {
+			return 0, err
+		}
+	default:
+		err = fmt.Errorf("wrong data type of CommandValue to transform: %s", cv.String())
+	}
+	return fmt.Sprintf("%v", v), nil
+}
+
+
 func CommandValueToReading(cv *dsModels.CommandValue, devName string, encoding string) *contract.Reading {
 	reading := &contract.Reading{Name: cv.DeviceResourceName, Device: devName}
 	if cv.Type == dsModels.Binary {
 		reading.BinaryValue = cv.BinValue
 	} else {
-		reading.Value = cv.ValueToString(encoding)
+		value, _ := transformForReading(cv)
+		reading.Value = value.(string)
 	}
 
 	// if value has a non-zero Origin, use it
@@ -199,7 +259,6 @@ func CompareResourceOperations(a []contract.ResourceOperation, b []contract.Reso
 			return false
 		}
 	}
-
 	return true
 }
 
@@ -262,19 +321,4 @@ func GetUniqueOrigin() int64 {
 	}
 	previousOrigin = now
 	return now
-}
-
-func FilterQueryParams(queryParams string) url.Values {
-	m, err := url.ParseQuery(queryParams)
-	if err != nil {
-		LoggingClient.Error("Error parsing query parameters: %s\n", err)
-	}
-	// Filter out parameters with predefined prefix
-	for k, _ := range m {
-		if strings.HasPrefix(k, SDKReservedPrefix) {
-			delete(m, k)
-		}
-	}
-
-	return m
 }
